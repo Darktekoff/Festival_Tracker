@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "FestivalTracker",
+    "slug": "FestivalTracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cette application a besoin d'accéder à votre caméra pour prendre des photos de profil.",
+        "NSPhotoLibraryUsageDescription": "Cette application a besoin d'accéder à vos photos pour sélectionner une photo de profil.",
+        "NSLocationWhenInUseUsageDescription": "Festival Tracker utilise votre position pour mapper les zones du festival et suivre votre activité.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Festival Tracker utilise votre position pour mapper les zones du festival et suivre votre activité même en arrière-plan.",
+        "NSMotionUsageDescription": "Festival Tracker utilise les données de mouvement pour compter vos pas et distinguer la marche de la danse."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyA6nXPF87zj-FxewyDBC3fVovH10ddI0GA"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
+      "package": "com.darktek.FestivalTracker",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyA6nXPF87zj-FxewyDBC3fVovH10ddI0GA"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f807b566-dc9f-46a6-a6f3-85e575e209c7"
+      }
+    }
+  }
+}

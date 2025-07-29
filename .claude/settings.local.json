@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(cd:*)",
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(eas:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(touch:*)",
+      "Bash(npx expo install:*)",
+      "Bash(timeout 30 npx expo start --no-dev --minify)",
+      "Bash(npx expo export:*)",
+      "Bash(ls:*)",
+      "Bash(npm run test:performance:*)",
+      "Bash(npm run test:*)"
+    ],
+    "deny": []
+  }
+}
