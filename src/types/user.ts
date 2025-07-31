@@ -36,14 +36,48 @@ export interface UserStats {
   lastDrink?: Date;
   isOnline: boolean;
   currentStreak: number; // jours sans dépasser limites
+  tricheCount: number; // nombre de triches
+}
+
+export interface NotificationPreferences {
+  // Messages & Social
+  chatMessages: boolean;
+  sharedPhotos: boolean;
+  newMembers: boolean;
+  groupActivities: boolean;
+  
+  // Sécurité & Alertes
+  consumptionAlerts: boolean;
+  membersInDanger: boolean;
+  hydrationReminders: boolean;
+  hydrationInterval: number; // en heures
+  sessionEnd: boolean;
+  inactivityAlert: boolean;
+  inactivityHours: number; // heures avant alerte
+  
+  // Festival & Événements
+  artistReminders: boolean;
+  festivalZones: boolean;
+  nearbyMembers: boolean;
+  
+  // Localisation
+  locationRequests: boolean;
+  locationShares: boolean;
 }
 
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
+  notificationDetails?: NotificationPreferences;
   alertThresholds: {
     moderate: number;
     high: number;
     critical: number;
   };
+}
+
+export interface AlertThresholds {
+  moderate: number;
+  high: number;
+  critical: number;
 }

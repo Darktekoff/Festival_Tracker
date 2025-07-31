@@ -41,6 +41,10 @@ interface UseStatsReturn {
   getHourlyDistribution: () => number[];
   getMostPopularDrinks: () => { name: string; count: number }[];
   getProgressToNextAlert: () => number;
+  // Compteurs de triches
+  todayTriches: number;
+  sessionTriches: number;
+  totalTriches: number;
 }
 
 export function useStats(
@@ -63,21 +67,44 @@ export function useStats(
     return drinks.filter(d => d.userId === userId && !d.isTemplate);
   }, [drinks, userId]);
 
-  // Calculer les stats utilisateur
-  const userStats = useMemo(() => {
-    return calculateDrinkStats(userDrinks);
-  }, [userDrinks]);
+  // Filtrer les triches de l'utilisateur
+  const userTriches = useMemo(() => {
+    if (!userId) return [];
+    return drinks.filter(d => d.userId === userId && !d.isTemplate && d.drinkType === 'Triche');
+  }, [drinks, userId]);
 
-  // Consommation du jour
+  // Filtrer les boissons normales (sans les triches)
+  const userNormalDrinks = useMemo(() => {
+    if (!userId) return [];
+    return drinks.filter(d => d.userId === userId && !d.isTemplate && d.drinkType !== 'Triche');
+  }, [drinks, userId]);
+
+  // Calculer les stats utilisateur (sans les triches)
+  const userStats = useMemo(() => {
+    return calculateDrinkStats(userNormalDrinks);
+  }, [userNormalDrinks]);
+
+  // Consommation du jour (sans les triches)
   const todayDrinks = useMemo(() => {
     const today = new Date();
     const start = startOfDay(today);
     const end = endOfDay(today);
     
-    return userDrinks.filter(d => 
+    return userNormalDrinks.filter(d => 
       d.timestamp >= start && d.timestamp <= end
     );
-  }, [userDrinks]);
+  }, [userNormalDrinks]);
+
+  // Triches du jour
+  const todayTrichesData = useMemo(() => {
+    const today = new Date();
+    const start = startOfDay(today);
+    const end = endOfDay(today);
+    
+    return userTriches.filter(d => 
+      d.timestamp >= start && d.timestamp <= end
+    );
+  }, [userTriches]);
 
   const todayUnits = useMemo(() => {
     return todayDrinks.reduce((sum, d) => sum + d.alcoholUnits, 0);
@@ -92,14 +119,35 @@ export function useStats(
   const sessionDrinksData = useMemo(() => {
     if (!userId) return [];
     
+    
     // Utiliser la détection améliorée si activée et disponible
     if (useEnhancedDetection && isActivityTrackingAvailable) {
+      // sessionDrinksWithActivity est déjà filtré (sans triches ni templates)
       return sessionDrinksWithActivity;
     }
     
-    // Sinon utiliser la méthode de base
-    return getSessionDrinks(drinks, userId);
+    // Sinon utiliser la méthode de base (sans les triches)
+    const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+    const userNormalDrinks = normalDrinks.filter(d => d.userId === userId);
+    const sessionResult = getSessionDrinks(normalDrinks, userId);
+    
+    
+    return sessionResult;
   }, [drinks, userId, useEnhancedDetection, isActivityTrackingAvailable, sessionDrinksWithActivity]);
+
+  // Triches de la session - Les triches ne suivent PAS la logique de session des boissons
+  // On compte simplement les triches d'aujourd'hui pour l'utilisateur
+  const sessionTrichesData = useMemo(() => {
+    if (!userId) return [];
+    
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    
+    return userTriches.filter(triche => 
+      triche.timestamp >= startOfToday && triche.timestamp < endOfToday
+    );
+  }, [userTriches]);
 
   const sessionDrinks = useMemo(() => {
     return sessionDrinksData.length;
@@ -109,9 +157,9 @@ export function useStats(
     return sessionDrinksData.reduce((sum, d) => sum + d.alcoholUnits, 0);
   }, [sessionDrinksData]);
 
-  // Moyenne du groupe pour la session actuelle
+  // Moyenne du groupe pour la session actuelle (sans les triches ni templates)
   const sessionGroupData = useMemo(() => {
-    return calculateSessionGroupAverage(drinks, groupMembers);
+    return calculateSessionGroupAverage(drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate), groupMembers);
   }, [drinks, groupMembers]);
 
   const sessionGroupAverage = useMemo(() => {
@@ -122,19 +170,19 @@ export function useStats(
     return sessionGroupData.sessionStartTime;
   }, [sessionGroupData]);
 
-  // Tendance hebdomadaire
+  // Tendance hebdomadaire (sans les triches)
   const weeklyTrend = useMemo(() => {
-    return getWeeklyTrend(userDrinks);
-  }, [userDrinks]);
+    return getWeeklyTrend(userNormalDrinks);
+  }, [userNormalDrinks]);
 
   // Niveau d'alerte basé sur les unités actuelles (avec élimination)
   const alertLevel = useMemo(() => {
     return getAlertLevel(currentUnits);
   }, [currentUnits]);
 
-  // Stats du groupe (exclure les templates)
+  // Stats du groupe (exclure les templates et les triches)
   const groupStats = useMemo(() => {
-    const nonTemplateDrinks = drinks.filter(d => !d.isTemplate);
+    const nonTemplateDrinks = drinks.filter(d => !d.isTemplate && d.drinkType !== 'Triche');
     return calculateGroupStats(nonTemplateDrinks, groupMembers);
   }, [drinks, groupMembers]);
 
@@ -150,11 +198,11 @@ export function useStats(
     return distribution;
   };
 
-  // Boissons les plus populaires
+  // Boissons les plus populaires (sans les triches)
   const getMostPopularDrinks = (): { name: string; count: number }[] => {
     const drinkCounts = new Map<string, number>();
     
-    userDrinks.forEach(drink => {
+    userNormalDrinks.forEach(drink => {
       const key = drink.customName || drink.drinkType;
       drinkCounts.set(key, (drinkCounts.get(key) || 0) + 1);
     });
@@ -196,6 +244,10 @@ export function useStats(
     toggleEnhancedDetection,
     getHourlyDistribution,
     getMostPopularDrinks,
-    getProgressToNextAlert
+    getProgressToNextAlert,
+    // Compteurs de triches
+    todayTriches: todayTrichesData.length,
+    sessionTriches: sessionTrichesData.length,
+    totalTriches: userTriches.length
   };
 }

@@ -116,6 +116,17 @@ export function MemberCard({
               {formatUnits(stats.averagePerDay)}
             </Text>
           </View>
+          
+          {stats.tricheCount > 0 && (
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: colors.textLight }]}>
+                Triches
+              </Text>
+              <Text style={[styles.statValue, { color: '#FF9800' }]}>
+                {stats.tricheCount} ⚡
+              </Text>
+            </View>
+          )}
         </View>
       )}
     </View>

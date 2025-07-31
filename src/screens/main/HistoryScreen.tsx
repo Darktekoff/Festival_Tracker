@@ -72,14 +72,25 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
     const [dateStr, dayDrinks] = item;
     const date = new Date(dateStr);
     
+    // Séparer les boissons normales et les triches (exclure les templates)
+    const normalDrinks = dayDrinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+    const triches = dayDrinks.filter(d => d.drinkType === 'Triche' && !d.isTemplate);
+    
     return (
       <View style={styles.daySection}>
         <Text style={[styles.dayHeader, { color: colors.text }]}>
           {formatDate(date, 'EEEE dd/MM/yyyy')}
         </Text>
-        <Text style={[styles.dayCount, { color: colors.textLight }]}>
-          {dayDrinks.length} boisson{dayDrinks.length > 1 ? 's' : ''}
-        </Text>
+        <View style={styles.dayCountContainer}>
+          <Text style={[styles.dayCount, { color: colors.textLight }]}>
+            {normalDrinks.length} boisson{normalDrinks.length > 1 ? 's' : ''}
+          </Text>
+          {triches.length > 0 && (
+            <Text style={[styles.dayCount, { color: '#FF9800' }]}>
+              {triches.length} triche{triches.length > 1 ? 's' : ''} ⚡
+            </Text>
+          )}
+        </View>
         <View style={styles.dayDrinks}>
           {dayDrinks.map((drink, index) => {
             const elements = [];
@@ -260,9 +271,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4
   },
-  dayCount: {
-    fontSize: 14,
+  dayCountContainer: {
+    flexDirection: 'row',
+    gap: 16,
     marginBottom: 12
+  },
+  dayCount: {
+    fontSize: 14
   },
   dayDrinks: {
     gap: 8

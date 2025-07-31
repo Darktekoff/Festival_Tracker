@@ -93,8 +93,10 @@ export function useMembers(
             return;
           }
 
-          const memberDrinks = drinks.filter(d => d?.userId === member.id);
-          const drinkStats = calculateDrinkStats(memberDrinks);
+          // Filtrer les boissons du membre (exclure templates et triches pour les stats)
+          const memberDrinks = drinks.filter(d => d?.userId === member.id && !d.isTemplate);
+          const memberNormalDrinks = memberDrinks.filter(d => d.drinkType !== 'Triche');
+          const drinkStats = calculateDrinkStats(memberNormalDrinks);
           
           // Calculer le streak avec protection
           let currentStreak = 0;
@@ -106,7 +108,7 @@ export function useMembers(
               const date = new Date(today);
               date.setDate(date.getDate() - i);
               
-              const dayDrinks = memberDrinks.filter(d => {
+              const dayDrinks = memberNormalDrinks.filter(d => {
                 try {
                   const drinkDate = new Date(d.timestamp);
                   drinkDate.setHours(0, 0, 0, 0);
@@ -130,14 +132,18 @@ export function useMembers(
             currentStreak = 0;
           }
 
+          // Compter les triches
+          const tricheCount = memberDrinks.filter(d => d.drinkType === 'Triche').length;
+          
           stats.set(member.id, {
             userId: member.id,
             totalDrinks: drinkStats.totalDrinks,
             totalUnits: drinkStats.totalUnits,
             averagePerDay: drinkStats.dailyAverage,
-            lastDrink: memberDrinks[0]?.timestamp,
+            lastDrink: memberNormalDrinks[0]?.timestamp,
             isOnline: member.isActive,
-            currentStreak
+            currentStreak,
+            tricheCount
           });
         } catch (error) {
           console.error('useMembers - Error processing member stats:', error, member);

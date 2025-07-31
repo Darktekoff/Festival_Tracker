@@ -21,6 +21,7 @@ import {
 import { db } from '../config/firebase';
 import { ChatMessage, TypingIndicator } from '../types/chat';
 import notificationService from './notificationService';
+import expoPushService from './expoPushService';
 
 export class ChatService {
   private static instance: ChatService;
@@ -59,13 +60,27 @@ export class ChatService {
         deletedAt: null
       });
 
-      // Envoyer la notification aux autres membres du groupe
+      // Envoyer la notification locale
       await notificationService.sendChatMessageNotification(
         userName,
         text.trim(),
         groupId,
         docRef.id,
         userId
+      );
+
+      // Envoyer la notification push aux autres membres via Expo
+      await expoPushService.sendGroupNotification(
+        groupId,
+        `💬 ${userName}`,
+        text.trim(),
+        {
+          type: 'chat_message',
+          groupId,
+          messageId: docRef.id,
+          fromUserName: userName
+        },
+        userId // Exclure l'expéditeur
       );
     } catch (error) {
       console.error('Error sending message:', error);
@@ -105,12 +120,26 @@ export class ChatService {
       const docRef = await addDoc(chatRef, messageData);
       console.log('ChatService - Photo message created with ID:', docRef.id);
 
-      // Envoyer la notification pour la photo
+      // Envoyer la notification locale pour la photo
       await notificationService.sendChatMessageNotification(
         userName,
         '📸 Photo',
         groupId,
         docRef.id,
+        userId
+      );
+
+      // Envoyer la notification push pour la photo
+      await pushNotificationService.sendGroupNotification(
+        groupId,
+        `📸 ${userName}`,
+        'A envoyé une photo',
+        {
+          type: 'chat_message',
+          groupId,
+          messageId: docRef.id,
+          fromUserName: userName
+        },
         userId
       );
     } catch (error) {

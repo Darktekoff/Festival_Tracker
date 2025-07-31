@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FestivalGroup, GroupMember } from '../types';
 import groupService from '../services/groupService';
 import authService from '../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface UseGroupReturn {
   group: FestivalGroup | null;
@@ -63,19 +64,23 @@ export function useGroup(): UseGroupReturn {
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    let mounted = true;
 
     const initGroup = async () => {
-      unsubscribe = await loadGroup();
+      if (mounted) {
+        unsubscribe = await loadGroup();
+      }
     };
 
     initGroup();
 
     return () => {
+      mounted = false;
       if (unsubscribe) {
         unsubscribe();
       }
     };
-  }, [loadGroup]);
+  }, []); // Retirer loadGroup des dépendances pour éviter les boucles
 
   const createGroup = async (
     name: string,
@@ -175,12 +180,8 @@ export function useGroup(): UseGroupReturn {
   };
 
   const refreshGroup = async (): Promise<void> => {
-    if (group) {
-      const updated = await groupService.getGroup(group.id);
-      if (updated) {
-        setGroup(updated);
-      }
-    }
+    // Recharger depuis l'ID stocké (qui peut avoir changé)
+    await loadGroup();
   };
 
   return {

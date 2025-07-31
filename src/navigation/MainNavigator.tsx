@@ -16,6 +16,8 @@ import { MemberProfileScreen } from '../screens/main/MemberProfileScreen';
 import { ChatScreen } from '../screens/main/ChatScreen';
 import { MappingScreen } from '../screens/main/MappingScreen';
 import { MapScreen } from '../screens/main/MapScreen';
+import { NotificationSettingsScreen } from '../screens/main/NotificationSettingsScreen';
+import { ChangeGroupScreen } from '../screens/main/ChangeGroupScreen';
 import { useTheme } from '../context/ThemeContext';
 import { useGroupContext } from '../context/GroupContext';
 import { useAuthContext } from '../context/AuthContext';
@@ -236,6 +238,23 @@ export function MainNavigator() {
         component={MappingScreen}
         options={{
           title: 'Cartographie du Festival',
+          headerShown: false
+        }}
+      />
+      
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          title: 'Paramètres de notifications',
+          headerBackTitle: 'Retour'
+        }}
+      />
+      
+      <Stack.Screen
+        name="ChangeGroup"
+        component={ChangeGroupScreen}
+        options={{
           headerShown: false
         }}
       />

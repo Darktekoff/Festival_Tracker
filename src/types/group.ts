@@ -29,6 +29,7 @@ export interface FestivalGroup {
     totalDrinks: number;
     averagePerPerson: number;
     mostActiveDay: string;
+    totalTriches: number;
   };
 
   // Programmation du festival
@@ -48,6 +49,7 @@ export interface GroupMember {
   lastActive: Date;
   isActive: boolean;
   totalContributions: number;
+  tricheCount?: number;
 }
 
 export interface GroupActivity {

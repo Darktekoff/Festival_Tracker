@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '../types';
 import authService from '../services/authService';
+import expoPushService from '../services/expoPushService';
 
 interface UseAuthReturn {
   user: User | null;
@@ -38,8 +39,13 @@ export function useAuth(): UseAuthReturn {
     initAuth();
 
     // Écouter les changements d'authentification
-    const unsubscribe = authService.onAuthStateChange((newUser) => {
+    const unsubscribe = authService.onAuthStateChange(async (newUser) => {
       setUser(newUser);
+      
+      // Enregistrer le token push si l'utilisateur est connecté
+      if (newUser?.id) {
+        await expoPushService.registerForPushNotifications(newUser.id);
+      }
     });
 
     return unsubscribe;
@@ -51,6 +57,12 @@ export function useAuth(): UseAuthReturn {
       setError(null);
       const newUser = await authService.signIn(email, password);
       setUser(newUser);
+      
+      // Enregistrer le token push après connexion
+      if (newUser?.id) {
+        await expoPushService.registerForPushNotifications(newUser.id);
+      }
+      
       return newUser;
     } catch (err) {
       setError(err as Error);
@@ -92,6 +104,12 @@ export function useAuth(): UseAuthReturn {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Supprimer le token push avant déconnexion
+      if (user?.id) {
+        await expoPushService.removePushToken(user.id);
+      }
+      
       await authService.signOut();
       setUser(null);
     } catch (err) {

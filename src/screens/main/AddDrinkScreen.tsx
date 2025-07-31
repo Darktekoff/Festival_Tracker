@@ -20,7 +20,7 @@ interface AddDrinkScreenProps {
 export function AddDrinkScreen({ navigation }: AddDrinkScreenProps) {
   const { colors } = useTheme();
   const { group } = useGroupContext();
-  const { addDrink, isAddingDrink, refresh } = useDrinks(group?.id || null);
+  const { addDrink, consumeTemplate, isAddingDrink, refresh } = useDrinks(group?.id || null);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -61,8 +61,8 @@ export function AddDrinkScreen({ navigation }: AddDrinkScreenProps) {
             navigation.goBack();
           }, 300);
         } else {
-          // Pour les templates, forcer un refresh immédiatement
-          refresh();
+          // Pour les templates, forcer un refresh immédiatement et attendre
+          await refresh();
         }
         // Si c'est un template, on reste sur l'écran et on retourne aux favoris
         // Le DrinkFormContent gèrera le retour au step 'quick'
@@ -92,6 +92,7 @@ export function AddDrinkScreen({ navigation }: AddDrinkScreenProps) {
       <DrinkFormContent
         onClose={handleClose}
         onSubmit={handleSubmit}
+        onConsumeTemplate={consumeTemplate}
         isLoading={isAddingDrink}
       />
       

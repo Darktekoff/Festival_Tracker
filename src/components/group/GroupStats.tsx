@@ -16,18 +16,22 @@ interface GroupStatsProps {
 export function GroupStats({ group, drinks, weeklyTrend }: GroupStatsProps) {
   const { colors, theme } = useTheme();
 
-  const todayDrinks = drinks.filter(d => {
+  // Filtrer les triches et templates
+  const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+  const trichesCount = drinks.filter(d => d.drinkType === 'Triche' && !d.isTemplate).length;
+
+  const todayDrinks = normalDrinks.filter(d => {
     const today = new Date();
     const drinkDate = new Date(d.timestamp);
     return drinkDate.toDateString() === today.toDateString();
   });
 
-  const totalUnits = drinks.reduce((sum, d) => sum + d.alcoholUnits, 0);
+  const totalUnits = normalDrinks.reduce((sum, d) => sum + d.alcoholUnits, 0);
   const averagePerMember = group.stats.totalMembers > 0 ? totalUnits / group.stats.totalMembers : 0;
 
-  // Calcul du membre le plus actif
+  // Calcul du membre le plus actif (sans les triches)
   const memberActivity = new Map<string, number>();
-  drinks.forEach(drink => {
+  normalDrinks.forEach(drink => {
     const current = memberActivity.get(drink.userId) || 0;
     memberActivity.set(drink.userId, current + 1);
   });
@@ -52,7 +56,7 @@ export function GroupStats({ group, drinks, weeklyTrend }: GroupStatsProps) {
     {
       icon: 'wine',
       label: 'Boissons totales',
-      value: group.stats.totalDrinks.toString(),
+      value: normalDrinks.length.toString(),
       color: colors.secondary
     },
     {
@@ -78,6 +82,12 @@ export function GroupStats({ group, drinks, weeklyTrend }: GroupStatsProps) {
       label: 'Plus actif',
       value: mostActiveMember || 'Aucun',
       color: colors.danger
+    },
+    {
+      icon: 'flash',
+      label: 'Triches totales',
+      value: trichesCount.toString(),
+      color: '#FF9800'
     }
   ];
 

@@ -14,6 +14,7 @@ export const DRINK_CATEGORY_ICONS: Record<string, IconMapping> = {
   cocktail: { name: 'wine-outline', color: '#8B5CF6' },
   shot: { name: 'water', color: '#10B981' },
   champagne: { name: 'wine', color: '#F59E0B' },
+  soft: { name: 'water-outline', color: '#06B6D4' },
   other: { name: 'cafe', color: '#6B7280' }
 };
 

@@ -648,14 +648,27 @@ export function getSessionDrinksWithActivity(
  * Garde la logique simple pour compatibilité
  */
 export function getSessionDrinks(drinks: DrinkRecord[], userId?: string): DrinkRecord[] {
-  if (drinks.length === 0) return [];
+  console.log('🔄 === CALCUL getSessionDrinks ===');
+  console.log('🔄 Input drinks:', drinks.length);
+  console.log('🔄 userId:', userId);
+  
+  if (drinks.length === 0) {
+    console.log('🔄 Retour: liste vide (pas de boissons)');
+    return [];
+  }
   
   // Filtrer par utilisateur si spécifié
   const userDrinks = userId 
     ? drinks.filter(d => d.userId === userId && !d.isTemplate)
     : drinks.filter(d => !d.isTemplate);
   
-  if (userDrinks.length === 0) return [];
+  console.log('🔄 User drinks après filtrage:', userDrinks.length);
+  console.log('🔄 User drinks IDs:', userDrinks.map(d => ({ id: d.id, userId: d.userId, timestamp: d.timestamp.toLocaleTimeString() })));
+  
+  if (userDrinks.length === 0) {
+    console.log('🔄 Retour: liste vide (pas de boissons pour cet user)');
+    return [];
+  }
   
   // Trier par timestamp
   const sortedDrinks = [...userDrinks].sort((a, b) => 
@@ -666,16 +679,23 @@ export function getSessionDrinks(drinks: DrinkRecord[], userId?: string): DrinkR
   const SESSION_BREAK_HOURS = 4;
   const SESSION_BREAK_MS = SESSION_BREAK_HOURS * 60 * 60 * 1000;
   
-  // Trouver le début de la session actuelle
-  let sessionStartIndex = sortedDrinks.length - 1;
+  // CORRECTION: Commencer par supposer que toute la liste fait partie de la session
+  // Si on trouve un gap, on ajustera sessionStartIndex
+  let sessionStartIndex = 0;
   
   for (let i = sortedDrinks.length - 1; i > 0; i--) {
     const currentDrink = new Date(sortedDrinks[i].timestamp);
     const previousDrink = new Date(sortedDrinks[i - 1].timestamp);
     const timeDiff = currentDrink.getTime() - previousDrink.getTime();
+    const timeDiffMinutes = timeDiff / (1000 * 60);
+    
+    console.log(`🔄 Gap check: ${previousDrink.toLocaleTimeString()} -> ${currentDrink.toLocaleTimeString()}`);
+    console.log(`🔄 Time diff: ${timeDiffMinutes.toFixed(1)} minutes (${(timeDiffMinutes/60).toFixed(1)}h)`);
+    console.log(`🔄 Break threshold: ${SESSION_BREAK_HOURS}h (${SESSION_BREAK_HOURS*60}min)`);
     
     // Si on trouve un gap de 4h+, la session commence après ce gap
     if (timeDiff >= SESSION_BREAK_MS) {
+      console.log(`🔄 GAP DÉTECTÉ! Session commence à l'index ${i}`);
       sessionStartIndex = i;
       break;
     }

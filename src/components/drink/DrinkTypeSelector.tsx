@@ -36,6 +36,7 @@ export function DrinkTypeSelector({
     { key: 'cocktail', label: 'Cocktails' },
     { key: 'shot', label: 'Shots' },
     { key: 'champagne', label: 'Champagne' },
+    { key: 'soft', label: 'Sans alcool' },
     { key: 'other', label: 'Autres' }
   ];
 

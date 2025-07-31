@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { DrinkRecord } from '../../types';
@@ -18,12 +18,18 @@ export function QuickAddButtons({ userDrinks, onQuickAdd, isLoading }: QuickAddB
   const [hiddenDrinks, setHiddenDrinks] = useState<Set<string>>(new Set());
   const [recentlyClicked, setRecentlyClicked] = useState<Set<string>>(new Set());
 
-  // Calculer les boissons favorites par fréquence d'utilisation
+
+  // Calculer les boissons favorites par fréquence d'utilisation (exclure les triches)
   const getFavoriteDrinks = () => {
     if (!userDrinks.length) return [];
 
+    // Filtrer seulement les triches (inclure les templates car ils sont faits pour les favoris)
+    const validDrinks = userDrinks.filter(drink => drink.drinkType !== 'Triche');
+    
+    if (!validDrinks.length) return [];
+
     // Grouper les boissons par signature unique
-    const drinkGroups = userDrinks.reduce((groups: { [key: string]: { drink: DrinkRecord, count: number } }, drink) => {
+    const drinkGroups = validDrinks.reduce((groups: { [key: string]: { drink: DrinkRecord, count: number } }, drink) => {
       const signature = `${drink.customName || drink.drinkType}-${drink.volume}-${drink.alcoholDegree}-${drink.category}`;
       
       // Ignorer les boissons masquées
@@ -34,16 +40,32 @@ export function QuickAddButtons({ userDrinks, onQuickAdd, isLoading }: QuickAddB
       if (!groups[signature]) {
         groups[signature] = { drink, count: 0 };
       }
-      groups[signature].count++;
+      // CORRECTION: Ne compter que les consommations réelles (pas les templates)
+      if (!drink.isTemplate) {
+        groups[signature].count++;
+      }
       
       return groups;
     }, {});
 
-    // Trier par fréquence et prendre les 6 plus populaires
-    return Object.values(drinkGroups)
-      .sort((a, b) => b.count - a.count)
+    // Trier par fréquence et templates récents, puis prendre les 6 plus populaires
+    const result = Object.values(drinkGroups)
+      .sort((a, b) => {
+        // Prioriser les templates récents (créés dans les dernières 5 minutes)
+        const now = new Date().getTime();
+        const aIsRecent = a.drink.isTemplate && (now - a.drink.createdAt.getTime()) < 5 * 60 * 1000;
+        const bIsRecent = b.drink.isTemplate && (now - b.drink.createdAt.getTime()) < 5 * 60 * 1000;
+        
+        if (aIsRecent && !bIsRecent) return -1;
+        if (!aIsRecent && bIsRecent) return 1;
+        
+        // Sinon, trier par fréquence
+        return b.count - a.count;
+      })
       .slice(0, 6)
       .map(group => ({ ...group.drink, usageCount: group.count }));
+    
+    return result;
   };
 
   const favoriteDrinks = getFavoriteDrinks();
@@ -317,21 +339,26 @@ const styles = StyleSheet.create({
   },
   usageBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
+    top: -8,
+    right: -8,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     minWidth: 24,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4
   },
   usageText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2
+    color: '#333333',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: -0.3
   }
 });

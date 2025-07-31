@@ -38,7 +38,7 @@ export function StatsScreen() {
   
   const { drinks } = useDrinks(groupId);
   const { members } = useMembers(groupMembers, groupId);
-  const { weeklyTrend } = useStats(drinks, userId, members);
+  const { weeklyTrend, totalTriches } = useStats(drinks, userId, members);
   const { currentActivity, zones, zoneTimeTracking } = useFestivalActivity();
 
   // Créer les catégories de boissons à partir des templates
@@ -64,8 +64,11 @@ export function StatsScreen() {
     );
   }
 
-  // Calculs statistiques avec protection
-  const todayDrinks = drinks.filter(d => {
+  // Calculs statistiques avec protection (exclure les triches et templates)
+  const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+  const trichesDrinks = drinks.filter(d => d.drinkType === 'Triche' && !d.isTemplate);
+  
+  const todayDrinks = normalDrinks.filter(d => {
     try {
       const today = new Date();
       const drinkDate = new Date(d.timestamp);
@@ -76,7 +79,7 @@ export function StatsScreen() {
     }
   });
 
-  const totalUnits = drinks.reduce((sum, d) => {
+  const totalUnits = normalDrinks.reduce((sum, d) => {
     try {
       return sum + (d.alcoholUnits || 0);
     } catch (error) {
@@ -85,10 +88,12 @@ export function StatsScreen() {
     }
   }, 0);
   
+  const totalTrichesCount = trichesDrinks.length;
+  
   const averagePerMember = group?.stats?.totalMembers > 0 ? totalUnits / group.stats.totalMembers : 0;
 
-  // Calculs par catégorie pour les détails avec protection
-  const drinksByCategory = drinks.reduce((acc, drink) => {
+  // Calculs par catégorie pour les détails avec protection (exclure les triches)
+  const drinksByCategory = normalDrinks.reduce((acc, drink) => {
     try {
       const category = drink.category || 'other';
       if (!acc[category]) {
@@ -122,7 +127,7 @@ export function StatsScreen() {
   const memberActivity = new Map<string, { count: number; units: number }>();
   
   try {
-    drinks.forEach(drink => {
+    normalDrinks.forEach(drink => {
       try {
         const current = memberActivity.get(drink.userId) || { count: 0, units: 0 };
         memberActivity.set(drink.userId, {
@@ -209,6 +214,13 @@ export function StatsScreen() {
         `${Math.ceil((group.settings.festivalDates.end.getTime() - group.settings.festivalDates.start.getTime()) / (1000 * 60 * 60 * 24))}j` : 
         '0j',
       color: colors.danger
+    },
+    {
+      id: 'triches',
+      icon: 'flash',
+      label: 'Triches totales',
+      value: totalTrichesCount.toString(),
+      color: '#FF9800'
     }
   ];
 

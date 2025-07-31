@@ -32,6 +32,34 @@ class DrinkService {
   private drinkListeners: Map<string, Unsubscribe> = new Map();
   private pendingDrinks: DrinkRecord[] = [];
 
+  async consumeTemplate(
+    groupId: string,
+    templateDrink: DrinkRecord
+  ): Promise<DrinkRecord | null> {
+    try {
+      const userId = authService.getCurrentUserId();
+      const user = authService.getCurrentUser();
+      if (!userId || !user) return null;
+
+      // Créer une nouvelle consommation basée sur le template
+      const consumptionData: DrinkFormData = {
+        category: templateDrink.category,
+        drinkType: templateDrink.drinkType,
+        customName: templateDrink.customName,
+        brand: templateDrink.brand,
+        volume: templateDrink.volume,
+        alcoholDegree: templateDrink.alcoholDegree,
+        isTemplate: false // Cette fois c'est une vraie consommation
+      };
+
+      // Utiliser la méthode addDrink normale pour la consommation
+      return await this.addDrink(groupId, consumptionData);
+    } catch (error) {
+      console.error('Error consuming template:', error);
+      return null;
+    }
+  }
+
   async addDrink(
     groupId: string,
     drinkData: DrinkFormData,
@@ -61,7 +89,8 @@ class DrinkService {
         timestamp: new Date(),
         createdAt: new Date(),
         syncStatus: 'pending',
-        lastModified: new Date()
+        lastModified: new Date(),
+        isTemplate: drinkData.isTemplate || false
       };
 
       // Essayer de sauvegarder en ligne
@@ -91,64 +120,73 @@ class DrinkService {
           
           transaction.set(drinkRef, drinkToSave);
 
-          // Mettre à jour les stats du groupe
-          const groupRef = doc(db, 'groups', groupId);
-          transaction.update(groupRef, {
-            'stats.totalDrinks': increment(1),
-            [`members.${userId}.totalContributions`]: increment(1),
-            [`members.${userId}.lastActive`]: serverTimestamp()
-          });
+          // Mettre à jour les stats du groupe seulement si ce n'est pas un template
+          if (!drinkData.isTemplate) {
+            const groupRef = doc(db, 'groups', groupId);
+            transaction.update(groupRef, {
+              'stats.totalDrinks': increment(1),
+              [`members.${userId}.totalContributions`]: increment(1),
+              [`members.${userId}.lastActive`]: serverTimestamp()
+            });
+          }
         });
 
         // Mettre à jour l'ID réel du document
         newDrink.id = drinkRef.id;
         newDrink.syncStatus = 'synced';
 
-        // Calculer le nombre de boissons du jour si non fourni
-        let finalTodayCount = todayCount;
-        if (!finalTodayCount) {
-          // Récupérer les boissons d'aujourd'hui pour ce user
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          
-          const todayDrinksQuery = query(
-            collection(db, 'groups', groupId, 'drinks'),
-            where('userId', '==', userId),
-            where('timestamp', '>=', todayStart),
-            orderBy('timestamp', 'desc')
+        // Créer une activité seulement si ce n'est pas un template
+        if (!drinkData.isTemplate) {
+          // Calculer le nombre de boissons du jour si non fourni
+          let finalTodayCount = todayCount;
+          if (!finalTodayCount) {
+            // Récupérer les boissons d'aujourd'hui pour ce user
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            
+            const todayDrinksQuery = query(
+              collection(db, 'groups', groupId, 'drinks'),
+              where('userId', '==', userId),
+              where('timestamp', '>=', todayStart)
+            );
+            
+            const todaySnapshot = await getDocs(todayDrinksQuery);
+            // CORRECTION: Filtrer les templates ET les triches côté client
+            const todayDrinks = todaySnapshot.docs.filter(doc => {
+              const data = doc.data();
+              return !data.isTemplate && data.drinkType !== 'Triche';
+            });
+            finalTodayCount = todayDrinks.length; // Inclut la boisson qu'on vient d'ajouter
+          }
+
+          // Générer un message d'activité personnalisé et fun
+          const funMessage = generateDrinkActivityMessage(
+            user.name, 
+            drinkData, 
+            finalTodayCount,
+            new Date()
           );
+
+          // Ajouter l'activité avec le message fun
+          const activityMetadata: any = {
+            drinkType: drinkData.drinkType,
+            todayCount: finalTodayCount,
+            alcoholUnits: alcoholUnits
+          };
           
-          const todaySnapshot = await getDocs(todayDrinksQuery);
-          finalTodayCount = todaySnapshot.size; // Inclut la boisson qu'on vient d'ajouter
+          // Ajouter customName seulement s'il existe
+          if (drinkData.customName) {
+            activityMetadata.customName = drinkData.customName;
+          }
+          
+          await groupService.addGroupActivity(
+            groupId,
+            userId,
+            'drink_added',
+            funMessage,
+            activityMetadata
+          );
         }
-
-        // Générer un message d'activité personnalisé et fun
-        const funMessage = generateDrinkActivityMessage(
-          user.name, 
-          drinkData, 
-          finalTodayCount,
-          new Date()
-        );
-
-        // Ajouter l'activité avec le message fun
-        const activityMetadata: any = {
-          drinkType: drinkData.drinkType,
-          todayCount: finalTodayCount,
-          alcoholUnits: alcoholUnits
-        };
-        
-        // Ajouter customName seulement s'il existe
-        if (drinkData.customName) {
-          activityMetadata.customName = drinkData.customName;
-        }
-        
-        await groupService.addGroupActivity(
-          groupId,
-          userId,
-          'drink_added',
-          funMessage,
-          activityMetadata
-        );
       } catch (error) {
         console.error('Error syncing drink, saving locally:', error);
         // Sauvegarder localement si hors ligne
@@ -194,9 +232,8 @@ class DrinkService {
         } as DrinkRecord);
       });
 
-      // Ajouter les boissons en attente
-      const pendingForGroup = this.pendingDrinks.filter(d => d.groupId === groupId);
-      drinks.unshift(...pendingForGroup);
+      // Les boissons en attente sont déjà gérées par subscribeToDrinks
+      // Ne pas les ajouter ici pour éviter les doublons
 
       return {
         drinks,
@@ -217,7 +254,6 @@ class DrinkService {
       const q = query(
         collection(db, 'groups', groupId, 'drinks'),
         where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
         limit(limitCount)
       );
 
@@ -240,6 +276,9 @@ class DrinkService {
         d => d.groupId === groupId && d.userId === userId
       );
       drinks.unshift(...pendingForUser);
+
+      // Trier par timestamp décroissant côté client (évite l'index composite)
+      drinks.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
       return drinks;
     } catch (error) {
@@ -317,7 +356,15 @@ class DrinkService {
         const pendingForGroup = this.pendingDrinks.filter(d => d.groupId === groupId);
         drinks.unshift(...pendingForGroup);
 
-        onUpdate(drinks);
+        // CORRECTION: Dédupliquer les boissons par ID pour éviter les doublons
+        const uniqueDrinks = drinks.reduce((acc, drink) => {
+          if (!acc.find(d => d.id === drink.id)) {
+            acc.push(drink);
+          }
+          return acc;
+        }, [] as DrinkRecord[]);
+
+        onUpdate(uniqueDrinks);
       },
       (error) => {
         console.error('Error in drinks subscription:', error);
@@ -420,15 +467,15 @@ class DrinkService {
       await this.savePendingDrinks();
 
       // Obtenir toutes les boissons de cet utilisateur avec une requête plus simple
-      const q = query(
+      const drinksQuery = query(
         collection(db, 'groups', groupId, 'drinks'),
         where('userId', '==', userId)
       );
 
-      const snapshot = await getDocs(q);
+      const drinksSnapshot = await getDocs(drinksQuery);
       const userDrinks: DrinkRecord[] = [];
       
-      snapshot.forEach((doc) => {
+      drinksSnapshot.forEach((doc) => {
         const data = doc.data();
         userDrinks.push({
           ...data,
@@ -437,6 +484,19 @@ class DrinkService {
           createdAt: data.createdAt?.toDate() || new Date(),
           lastModified: data.lastModified?.toDate() || new Date()
         } as DrinkRecord);
+      });
+
+      // Obtenir toutes les activités de cet utilisateur
+      const activitiesQuery = query(
+        collection(db, 'groups', groupId, 'activity'),
+        where('userId', '==', userId)
+      );
+
+      const activitiesSnapshot = await getDocs(activitiesQuery);
+      const userActivities: string[] = [];
+      
+      activitiesSnapshot.forEach((doc) => {
+        userActivities.push(doc.id);
       });
       
       // Utiliser une transaction pour supprimer toutes les boissons et mettre à jour les stats
@@ -457,6 +517,12 @@ class DrinkService {
           transaction.delete(drinkRef);
         }
 
+        // Supprimer toutes les activités de cet utilisateur
+        for (const activityId of userActivities) {
+          const activityRef = doc(db, 'groups', groupId, 'activity', activityId);
+          transaction.delete(activityRef);
+        }
+
         // Mettre à jour les stats du groupe
         const newTotalDrinks = Math.max(0, (groupData.stats?.totalDrinks || 0) - userDrinksCount);
         
@@ -468,7 +534,7 @@ class DrinkService {
         });
       });
 
-      console.log(`Successfully deleted ${userDrinks.length} drinks for user ${userId}`);
+      console.log(`Successfully deleted ${userDrinks.length} drinks and ${userActivities.length} activities for user ${userId}`);
     } catch (error) {
       console.error('Error deleting user drinks:', error);
       throw error;

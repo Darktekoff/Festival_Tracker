@@ -21,12 +21,13 @@ export function RecentDrinkButtons({
 }: RecentDrinkButtonsProps) {
   const { colors } = useTheme();
 
-  if (recentDrinks.length === 0) {
+  // Filtrer les triches et templates, grouper les boissons récentes par type/nom pour éviter les doublons
+  const normalRecentDrinks = recentDrinks.filter(drink => drink.drinkType !== 'Triche' && !drink.isTemplate);
+  
+  if (normalRecentDrinks.length === 0) {
     return null;
   }
-
-  // Grouper les boissons récentes par type/nom pour éviter les doublons
-  const uniqueDrinks = recentDrinks.reduce((unique: DrinkRecord[], drink) => {
+  const uniqueDrinks = normalRecentDrinks.reduce((unique: DrinkRecord[], drink) => {
     const drinkKey = drink.customName || `${drink.category}-${drink.drinkType}`;
     const existingIndex = unique.findIndex(d => 
       (d.customName || `${d.category}-${d.drinkType}`) === drinkKey

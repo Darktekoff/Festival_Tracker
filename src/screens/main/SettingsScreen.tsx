@@ -195,6 +195,10 @@ export function SettingsScreen({ navigation }: SettingsScreenProps) {
     }
   };
 
+  const handleChangeGroup = () => {
+    navigation.navigate('ChangeGroup');
+  };
+
   const handleLeaveGroup = () => {
     if (!group) return;
 
@@ -338,10 +342,9 @@ export function SettingsScreen({ navigation }: SettingsScreenProps) {
     {
       icon: 'notifications-outline' as const,
       title: 'Notifications',
-      subtitle: 'Recevoir les notifications du groupe',
-      type: 'switch' as const,
-      value: notifications,
-      onValueChange: setNotifications
+      subtitle: 'Paramètres détaillés des notifications',
+      type: 'nav' as const,
+      onPress: () => navigation.navigate('NotificationSettings')
     },
     {
       icon: 'location-outline' as const,
@@ -701,12 +704,21 @@ export function SettingsScreen({ navigation }: SettingsScreenProps) {
                   {Object.keys(group.members).length} membres • Code: {group.id}
                 </Text>
               </View>
-              <Button
-                title="Quitter"
-                onPress={handleLeaveGroup}
-                variant="danger"
-                size="small"
-              />
+              <View style={styles.groupActions}>
+                <Button
+                  title="Changer"
+                  onPress={handleChangeGroup}
+                  variant="secondary"
+                  size="small"
+                  style={styles.changeGroupButton}
+                />
+                <Button
+                  title="Quitter"
+                  onPress={handleLeaveGroup}
+                  variant="danger"
+                  size="small"
+                />
+              </View>
             </View>
           </Card>
         )}
@@ -888,6 +900,13 @@ const styles = StyleSheet.create({
   },
   groupDetails: {
     flex: 1
+  },
+  groupActions: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  changeGroupButton: {
+    marginRight: 8
   },
   groupName: {
     fontSize: 16,

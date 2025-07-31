@@ -24,6 +24,8 @@ export type MainStackParamList = {
   MemberProfile: { memberId: string };
   LineupManage: undefined;
   Mapping: undefined;
+  NotificationSettings: undefined;
+  ChangeGroup: undefined;
 };
 
 export type BottomTabParamList = {

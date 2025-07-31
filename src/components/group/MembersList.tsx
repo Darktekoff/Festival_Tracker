@@ -30,7 +30,7 @@ export function MembersList({
   onMemberPress
 }: MembersListProps) {
   const { colors, theme } = useTheme();
-  const [sortBy, setSortBy] = useState<'name' | 'activity' | 'drinks'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'activity' | 'drinks' | 'triches'>('name');
 
   const sortedMembers = [...members].sort((a, b) => {
     switch (sortBy) {
@@ -40,6 +40,10 @@ export function MembersList({
         const aStats = memberStats.get(a.id);
         const bStats = memberStats.get(b.id);
         return (bStats?.totalDrinks || 0) - (aStats?.totalDrinks || 0);
+      case 'triches':
+        const aTricheStats = memberStats.get(a.id);
+        const bTricheStats = memberStats.get(b.id);
+        return (bTricheStats?.tricheCount || 0) - (aTricheStats?.tricheCount || 0);
       default:
         return a.name.localeCompare(b.name);
     }
@@ -150,6 +154,25 @@ export function MembersList({
               ]}
             >
               Boissons
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => setSortBy('triches')}
+            style={[
+              styles.sortButton,
+              sortBy === 'triches' && { backgroundColor: colors.primary }
+            ]}
+          >
+            <Text
+              style={[
+                styles.sortText,
+                {
+                  color: sortBy === 'triches' ? '#ffffff' : colors.textLight
+                }
+              ]}
+            >
+              Triches
             </Text>
           </TouchableOpacity>
         </View>

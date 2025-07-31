@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DrinkRecord, DrinkFormData } from '../types';
 import drinkService from '../services/drinkService';
 import { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { useAuthContext } from '../context/AuthContext';
 
 interface UseDrinksReturn {
   drinks: DrinkRecord[];
@@ -10,6 +11,7 @@ interface UseDrinksReturn {
   error: Error | null;
   hasMore: boolean;
   addDrink: (drinkData: DrinkFormData) => Promise<DrinkRecord | null>;
+  consumeTemplate: (templateDrink: DrinkRecord) => Promise<DrinkRecord | null>;
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
   getUserDrinks: (userId: string) => DrinkRecord[];
@@ -17,6 +19,7 @@ interface UseDrinksReturn {
 }
 
 export function useDrinks(groupId: string | null): UseDrinksReturn {
+  const { user } = useAuthContext();
   const [drinks, setDrinks] = useState<DrinkRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingDrink, setIsAddingDrink] = useState(false);
@@ -79,7 +82,6 @@ export function useDrinks(groupId: string | null): UseDrinksReturn {
         unsubscribe = drinkService.subscribeToDrinks(
           groupId,
           (updatedDrinks) => {
-            console.log('useDrinks - Drinks updated via listener:', updatedDrinks.length);
             setDrinks(updatedDrinks);
             setError(null);
           },
@@ -121,16 +123,19 @@ export function useDrinks(groupId: string | null): UseDrinksReturn {
       setIsAddingDrink(true);
       setError(null);
 
-      console.log('useDrinks - Adding drink for group:', groupId);
 
       // Calculer le nombre de boissons d'aujourd'hui pour l'utilisateur actuel (pour le message fun)
       const todayDrinks = getTodayDrinks();
-      // Note: getTodayDrinks() retourne déjà les boissons de tous les users
-      // On filtrera côté service avec l'userId actuel
-      const todayCount = todayDrinks.length + 1; // +1 pour la boisson qu'on va ajouter
+      // CORRECTION: Filtrer les templates ET les triches pour le calcul todayCount
+      const userTodayDrinks = todayDrinks.filter(drink => 
+        drink.userId === user?.id && 
+        !drink.isTemplate && 
+        drink.drinkType !== 'Triche'
+      );
+      const todayCount = userTodayDrinks.length + 1; // +1 pour la boisson qu'on va ajouter
+
 
       const newDrink = await drinkService.addDrink(groupId, drinkData, todayCount);
-      console.log('useDrinks - Drink added successfully:', newDrink?.id);
       
       // Ne pas faire de mise à jour optimiste - laisser le listener temps réel gérer
       // pour éviter les conflits et doublons
@@ -138,6 +143,31 @@ export function useDrinks(groupId: string | null): UseDrinksReturn {
       return newDrink;
     } catch (err) {
       console.error('useDrinks - Error in addDrink:', err);
+      setError(err as Error);
+      return null;
+    } finally {
+      setIsAddingDrink(false);
+    }
+  };
+
+  const consumeTemplate = async (templateDrink: DrinkRecord): Promise<DrinkRecord | null> => {
+    if (!groupId || typeof groupId !== 'string') {
+      console.error('useDrinks - Cannot consume template: invalid groupId');
+      return null;
+    }
+
+    try {
+      setIsAddingDrink(true);
+      setError(null);
+
+      console.log('useDrinks - Consuming template for group:', groupId);
+
+      const newDrink = await drinkService.consumeTemplate(groupId, templateDrink);
+      console.log('useDrinks - Template consumed successfully:', newDrink?.id);
+      
+      return newDrink;
+    } catch (err) {
+      console.error('useDrinks - Error in consumeTemplate:', err);
       setError(err as Error);
       return null;
     } finally {
@@ -190,6 +220,7 @@ export function useDrinks(groupId: string | null): UseDrinksReturn {
     error,
     hasMore,
     addDrink,
+    consumeTemplate,
     loadMore,
     refresh,
     getUserDrinks,

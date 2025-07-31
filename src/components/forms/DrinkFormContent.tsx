@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -20,35 +20,55 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface DrinkFormContentProps {
   onClose: () => void;
-  onSubmit: (data: DrinkFormData, shouldConsume?: boolean) => void;
+  onSubmit: (data: DrinkFormData, shouldConsume?: boolean) => Promise<void>;
+  onConsumeTemplate: (template: DrinkRecord) => Promise<DrinkRecord | null>;
   isLoading?: boolean;
 }
 
-export function DrinkFormContent({ onClose, onSubmit, isLoading }: DrinkFormContentProps) {
+export function DrinkFormContent({ onClose, onSubmit, onConsumeTemplate, isLoading }: DrinkFormContentProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
   const { group } = useGroupContext();
-  const { drinks } = useDrinks(group?.id || null);
+  const { drinks, refresh } = useDrinks(group?.id || null);
   const [selectedTemplate, setSelectedTemplate] = useState<DrinkTemplate | null>(null);
   const [step, setStep] = useState<'quick' | 'select' | 'details'>('quick');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Mémoriser toutes les boissons de l'utilisateur (y compris templates pour les favoris)
-  const userAllDrinks = useMemo(
-    () => drinks.filter(drink => drink.userId === user?.id),
-    [drinks, user?.id]
-  );
+  // Surveiller les changements dans drinks pour forcer la mise à jour
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [drinks.length]); // Se déclenche quand une nouvelle boisson est ajoutée
 
-  const handleQuickAdd = (drink: DrinkRecord) => {
-    const formData: DrinkFormData = {
-      category: drink.category,
-      drinkType: drink.drinkType,
-      volume: drink.volume,
-      alcoholDegree: drink.alcoholDegree,
-      customName: drink.customName,
-      brand: drink.brand
-    };
-    onSubmit(formData, true); // Les boutons rapides ajoutent toujours la consommation
+  // Forcer un refresh quand on revient à l'étape 'quick'
+  useEffect(() => {
+    if (step === 'quick') {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [step]);
+
+  // Mémoriser toutes les boissons de l'utilisateur (y compris templates pour les favoris, mais exclure les triches)
+  const userAllDrinks = useMemo(() => {
+    return drinks.filter(drink => drink.userId === user?.id && drink.drinkType !== 'Triche');
+  }, [drinks, user?.id, refreshKey]);
+
+  const handleQuickAdd = async (drink: DrinkRecord) => {
+    if (drink.isTemplate) {
+      // Si c'est un template, utiliser la fonction dédiée
+      await onConsumeTemplate(drink);
+      onClose(); // Fermer l'écran après consommation
+    } else {
+      // Si c'est une boisson prédéfinie, utiliser l'ancienne méthode
+      const formData: DrinkFormData = {
+        category: drink.category,
+        drinkType: drink.drinkType,
+        volume: drink.volume,
+        alcoholDegree: drink.alcoholDegree,
+        customName: drink.customName,
+        brand: drink.brand
+      };
+      onSubmit(formData, true); // Les boutons prédéfinis ajoutent toujours la consommation
+    }
   };
 
   const handleTemplateSelect = (template: DrinkTemplate) => {
@@ -56,14 +76,29 @@ export function DrinkFormContent({ onClose, onSubmit, isLoading }: DrinkFormCont
     setStep('details');
   };
 
-  const handleFormSubmit = (data: DrinkFormData) => {
-    // Les boissons créées depuis le formulaire détaillé sont toujours des templates
-    onSubmit(data, false);
-    
-    // Retourner au step 'quick' après la création du template
-    setTimeout(() => {
+  const handleFormSubmit = async (data: DrinkFormData) => {
+    try {
+      // Les boissons créées depuis le formulaire détaillé sont toujours des templates
+      await onSubmit(data, false);
+      
+      // Attendre un petit moment pour que la boisson soit sauvegardée
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Faire le refresh avant de revenir à quick
+      await refresh();
+      
+      // Forcer le re-calcul et retour à quick
+      setRefreshKey(prev => prev + 1);
       setStep('quick');
-    }, 100);
+      
+      // Double sécurité : un autre refresh après 500ms
+      setTimeout(async () => {
+        await refresh();
+        setRefreshKey(prev => prev + 1);
+      }, 500);
+    } catch (error) {
+      console.error('Error in handleFormSubmit:', error);
+    }
   };
 
   const handleBack = () => {

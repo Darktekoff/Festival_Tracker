@@ -52,7 +52,11 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
     isActivityTrackingAvailable,
     currentSleepStatus,
     useEnhancedDetection,
-    toggleEnhancedDetection
+    toggleEnhancedDetection,
+    todayTriches,
+    sessionTriches,
+    totalTriches,
+    groupStats
   } = useStats(
     drinks,
     user?.id || null,
@@ -115,8 +119,8 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
     }
   ) : null;
 
-  // Analyser la vitesse de consommation des boissons de la session
-  const sessionDrinksForSpeed = drinks.filter(d => !d.isTemplate && d.userId === user?.id);
+  // Analyser la vitesse de consommation des boissons de la session (exclure les triches)
+  const sessionDrinksForSpeed = drinks.filter(d => !d.isTemplate && d.userId === user?.id && d.drinkType !== 'Triche');
   const sessionDrinksData = sessionDrinksForSpeed.length > 0 ? sessionDrinksForSpeed : [];
   const consumptionAnalysis = analyzeConsumptionSpeed(sessionDrinksData);
   
@@ -234,7 +238,7 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const recentDrinks = drinks.filter(d => !d.isTemplate).slice(0, 5);
   
-  // Calculer le nombre de boissons du jour pour chaque utilisateur
+  // Calculer le nombre de boissons du jour pour chaque utilisateur (sans les triches)
   const getUserTodayDrinks = (userId: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -242,7 +246,7 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
     const userTodayDrinks = drinks.filter(drink => {
       const drinkDate = new Date(drink.timestamp);
       drinkDate.setHours(0, 0, 0, 0);
-      return drink.userId === userId && drinkDate.getTime() === today.getTime() && !drink.isTemplate;
+      return drink.userId === userId && drinkDate.getTime() === today.getTime() && !drink.isTemplate && drink.drinkType !== 'Triche';
     });
     
     return userTodayDrinks.length;
@@ -346,6 +350,14 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
               </Text>
               <Text style={[styles.statLabel, { color: colors.textLight }]}>
                 Moyenne groupe
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: '#FF9800' }]}>
+                {sessionTriches}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textLight }]}>
+                Triches session
               </Text>
             </View>
           </View>
@@ -455,6 +467,16 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
               <Ionicons name="chevron-forward" size={16} color={colors.warning} />
             </TouchableOpacity>
           )}
+          
+          {/* Affichage du total des triches si > 0 */}
+          {totalTriches > 0 && (
+            <View style={[styles.tricheStatsInfo, { backgroundColor: '#FF9800' + '20' }]}>
+              <Ionicons name="flash" size={16} color="#FF9800" />
+              <Text style={[styles.tricheStatsText, { color: '#FF9800' }]}>
+                Total des triches: {totalTriches} ⚡
+              </Text>
+            </View>
+          )}
         </Card>
 
         <View style={styles.modernQuickActions}>
@@ -506,9 +528,11 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
                     </Text>
                   </View>
                   <View style={[styles.activityIcon, { backgroundColor: activity.color }]}>
-                    <Text style={styles.activityEmoji}>
-                      {activity.icon}
-                    </Text>
+                    <Ionicons 
+                      name={activity.icon as any} 
+                      size={20} 
+                      color="#ffffff" 
+                    />
                   </View>
                 </View>
               ))}
@@ -543,7 +567,7 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
             <View style={styles.groupStats}>
               <View style={styles.groupStat}>
                 <Text style={[styles.groupStatValue, { color: colors.text }]}>
-                  {group.stats.totalDrinks}
+                  {groupStats.totalDrinks}
                 </Text>
                 <Text style={[styles.groupStatLabel, { color: colors.textLight }]}>
                   Boissons totales
@@ -551,7 +575,7 @@ export function DashboardScreen({ navigation }: DashboardScreenProps) {
               </View>
               <View style={styles.groupStat}>
                 <Text style={[styles.groupStatValue, { color: colors.text }]}>
-                  {formatUnits(group.stats.averagePerPerson)}
+                  {formatUnits(groupStats.averagePerPerson)}
                 </Text>
                 <Text style={[styles.groupStatLabel, { color: colors.textLight }]}>
                   Moyenne/personne
@@ -700,7 +724,8 @@ const styles = StyleSheet.create({
   statsContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 16
+    marginBottom: 16,
+    flexWrap: 'wrap'
   },
   statItem: {
     alignItems: 'center'
@@ -817,9 +842,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8
-  },
-  activityEmoji: {
-    fontSize: 14
   },
   groupCard: {
     marginBottom: 16
@@ -1067,6 +1089,19 @@ const styles = StyleSheet.create({
   },
   sleepText: {
     fontSize: 10,
+    fontWeight: '600'
+  },
+  tricheStatsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8
+  },
+  tricheStatsText: {
+    fontSize: 13,
     fontWeight: '600'
   }
 });

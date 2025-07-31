@@ -36,7 +36,7 @@ export function useActivityBasedSessions(
 ): UseActivityBasedSessionsReturn {
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
   const [isActivityTrackingAvailable, setIsActivityTrackingAvailable] = useState(false);
-  const [useEnhancedDetection, setUseEnhancedDetection] = useState(true);
+  const [useEnhancedDetection, setUseEnhancedDetection] = useState(false);
 
   // Vérifier la disponibilité du tracking d'activité
   useEffect(() => {
@@ -115,17 +115,24 @@ export function useActivityBasedSessions(
 
   // Calculer les sessions avec la méthode de base
   const sessionDrinks = useMemo(() => {
-    return getSessionDrinks(drinks, userId || undefined);
+    // Filtrer les triches ET les templates pour les sessions de base
+    const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+    return getSessionDrinks(normalDrinks, userId || undefined);
   }, [drinks, userId]);
 
-  // Calculer les sessions avec détection d'activité améliorée
+  // Calculer les sessions avec détection d'activité améliorée (sans les triches ni templates)
   const sessionDrinksWithActivity = useMemo(() => {
     if (!isActivityTrackingAvailable || activityData.length === 0) {
-      return sessionDrinks; // Fallback sur la méthode de base
+      // Fallback : utiliser la méthode de base directement
+      const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+      return getSessionDrinks(normalDrinks, userId || undefined);
     }
     
-    return getSessionDrinksWithActivity(drinks, activityData, userId || undefined);
+    // Filtrer les triches ET les templates avant de passer à getSessionDrinksWithActivity
+    const normalDrinks = drinks.filter(d => d.drinkType !== 'Triche' && !d.isTemplate);
+    return getSessionDrinksWithActivity(normalDrinks, activityData, userId || undefined);
   }, [drinks, activityData, userId, isActivityTrackingAvailable]);
+
 
   // Analyser le statut de sommeil actuel
   const currentSleepStatus = useMemo(() => {

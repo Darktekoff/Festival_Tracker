@@ -59,6 +59,7 @@ class ActivityStreamService {
   }
 
   private updateCombinedActivities(): void {
+
     const combined: CombinedActivity[] = [];
 
     // Convertir les activités de boisson
@@ -85,21 +86,23 @@ class ActivityStreamService {
     // Limiter aux 50 plus récentes
     const recentActivities = balancedActivities.slice(0, 50);
 
+
     // Notifier les callbacks
     this.combinedActivityCallbacks.forEach(callback => callback(recentActivities));
   }
 
   private convertDrinkActivity(activity: GroupActivity): CombinedActivity {
-    let icon = '🍺';
+    let icon = 'wine';
     let color = '#FF9800';
     let message = activity.message;
     
     switch (activity.type) {
       case 'drink_added':
-        icon = '🍺';
-        color = '#FF9800';
+        // Déterminer l'icône selon le type de boisson
+        icon = this.getDrinkIcon(activity.metadata);
+        color = this.getDrinkColor(activity.metadata);
         // Générer un message fun détaillé si on a les metadata
-        if (activity.metadata && activity.metadata.drinkType && activity.metadata.todayCount) {
+        if (activity.metadata && activity.metadata.drinkType && typeof activity.metadata.todayCount === 'number') {
           message = this.generateDetailedDrinkMessage(
             activity.userName,
             activity.metadata.drinkType,
@@ -110,19 +113,19 @@ class ActivityStreamService {
         }
         break;
       case 'alert_triggered':
-        icon = '⚠️';
+        icon = 'warning';
         color = '#F44336';
         break;
       case 'milestone_reached':
-        icon = '🎉';
+        icon = 'trophy';
         color = '#4CAF50';
         break;
       case 'member_joined':
-        icon = '👋';
+        icon = 'person-add';
         color = '#2196F3';
         break;
       case 'member_left':
-        icon = '👋';
+        icon = 'person-remove';
         color = '#757575';
         break;
     }
@@ -222,6 +225,84 @@ class ActivityStreamService {
     }
     
     return categoryMessages[messageIndex];
+  }
+
+  private getDrinkIcon(metadata: any): string {
+    // Utiliser la catégorie des métadonnées si disponible
+    if (metadata?.category) {
+      return this.getCategoryIcon(metadata.category);
+    }
+    
+    // Fallback : analyser le type de boisson
+    if (metadata?.drinkType) {
+      const category = this.detectDrinkCategory(metadata.drinkType);
+      return this.getCategoryIcon(category);
+    }
+    
+    return 'wine'; // icône par défaut
+  }
+
+  private getDrinkColor(metadata: any): string {
+    // Utiliser la catégorie des métadonnées si disponible
+    if (metadata?.category) {
+      return this.getCategoryColor(metadata.category);
+    }
+    
+    // Fallback : analyser le type de boisson
+    if (metadata?.drinkType) {
+      const category = this.detectDrinkCategory(metadata.drinkType);
+      return this.getCategoryColor(category);
+    }
+    
+    return '#FF9800'; // couleur par défaut
+  }
+
+  private getCategoryIcon(category: string): string {
+    switch (category) {
+      case 'beer': return 'beer';
+      case 'wine': return 'wine';
+      case 'cocktail': return 'wine'; // Pas d'icône cocktail parfaite, on utilise wine
+      case 'shot': return 'wine';
+      case 'champagne': return 'wine';
+      case 'soft': return 'water';
+      case 'triche': return 'flask'; // Icône chimie pour les triches !
+      default: return 'wine';
+    }
+  }
+
+  private getCategoryColor(category: string): string {
+    switch (category) {
+      case 'beer': return '#FFC107';
+      case 'wine': return '#E91E63';
+      case 'cocktail': return '#2196F3';
+      case 'shot': return '#FF5722';
+      case 'champagne': return '#FFD700';
+      case 'soft': return '#00BCD4';
+      case 'triche': return '#9C27B0'; // Violet pour les triches
+      default: return '#FF9800';
+    }
+  }
+
+  private detectDrinkCategory(drinkType: string): string {
+    const drinkTypeLower = drinkType.toLowerCase();
+    
+    if (drinkTypeLower.includes('triche')) {
+      return 'triche';
+    } else if (drinkTypeLower.includes('bière') || drinkTypeLower.includes('pinte') || drinkTypeLower.includes('blonde') || drinkTypeLower.includes('brune')) {
+      return 'beer';
+    } else if (drinkTypeLower.includes('vin') || drinkTypeLower.includes('rouge') || drinkTypeLower.includes('blanc') || drinkTypeLower.includes('rosé')) {
+      return 'wine';
+    } else if (drinkTypeLower.includes('cocktail') || drinkTypeLower.includes('mojito') || drinkTypeLower.includes('piña')) {
+      return 'cocktail';
+    } else if (drinkTypeLower.includes('shot') || drinkTypeLower.includes('vodka') || drinkTypeLower.includes('tequila') || drinkTypeLower.includes('rhum')) {
+      return 'shot';
+    } else if (drinkTypeLower.includes('champagne') || drinkTypeLower.includes('mousseux') || drinkTypeLower.includes('prosecco')) {
+      return 'champagne';
+    } else if (drinkTypeLower.includes('eau') || drinkTypeLower.includes('soda') || drinkTypeLower.includes('jus') || drinkTypeLower.includes('sans alcool')) {
+      return 'soft';
+    }
+    
+    return 'other';
   }
 
   private convertGroupZoneActivity(activity: GroupZoneActivity): CombinedActivity {

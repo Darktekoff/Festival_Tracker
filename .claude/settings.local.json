@@ -17,7 +17,11 @@
       "Bash(npx expo export:*)",
       "Bash(ls:*)",
       "Bash(npm run test:performance:*)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)"
     ],
     "deny": []
   }

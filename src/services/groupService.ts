@@ -379,9 +379,80 @@ class GroupService {
     }
   }
 
+  async selectGroup(groupId: string): Promise<boolean> {
+    try {
+      await AsyncStorage.setItem('currentGroupId', groupId);
+      return true;
+    } catch (error) {
+      console.error('Error selecting group:', error);
+      return false;
+    }
+  }
+
+  async getUserGroups(userId: string): Promise<FestivalGroup[]> {
+    try {
+      const q = query(
+        collection(db, 'groups'),
+        where(`members.${userId}`, '!=', null)
+      );
+
+      const snapshot = await getDocs(q);
+      const groups: FestivalGroup[] = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        groups.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          festivalDates: {
+            start: data.festivalDates?.start?.toDate() || new Date(),
+            end: data.festivalDates?.end?.toDate() || new Date()
+          }
+        } as FestivalGroup);
+      });
+
+      // Trier par date de création (plus récent en premier)
+      return groups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (error) {
+      console.error('Error getting user groups:', error);
+      return [];
+    }
+  }
+
   async getCurrentGroupId(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('currentGroupId');
+      // Essayer de récupérer l'ID stocké localement
+      const storedId = await AsyncStorage.getItem('currentGroupId');
+      if (storedId) {
+        return storedId;
+      }
+
+      // Si pas d'ID stocké, chercher automatiquement les groupes de l'utilisateur
+      console.log('No stored group ID, searching for user groups...');
+      const userId = authService.getCurrentUserId();
+      if (!userId) return null;
+
+      // Requête pour trouver les groupes où l'utilisateur est membre
+      const q = query(
+        collection(db, 'groups'),
+        where(`members.${userId}`, '!=', null),
+        orderBy(`members.${userId}.joinedAt`, 'desc'),
+        limit(1)
+      );
+
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const groupDoc = snapshot.docs[0];
+        const groupId = groupDoc.id;
+        
+        // Sauvegarder l'ID trouvé pour la prochaine fois
+        await AsyncStorage.setItem('currentGroupId', groupId);
+        console.log('Auto-recovered group ID:', groupId);
+        return groupId;
+      }
+
+      return null;
     } catch (error) {
       console.error('Error getting current group ID:', error);
       return null;
